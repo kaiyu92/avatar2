@@ -1,6 +1,6 @@
-[submodule "targets/src/avatar-qemu"]
-	path = targets/src/avatar-qemu
-	url = ../avatar-qemu.git
-[submodule "targets/src/avatar-panda"]
-	path = targets/src/avatar-panda
-	url = https://github.com/panda-re/panda
+# [submodule "targets/src/avatar-qemu"]
+# 	path = targets/src/avatar-qemu
+# 	url = ../avatar-qemu.git
+# [submodule "targets/src/avatar-panda"]
+# 	path = targets/src/avatar-panda
+# 	url = https://github.com/panda-re/panda

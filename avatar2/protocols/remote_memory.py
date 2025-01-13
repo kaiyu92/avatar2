@@ -5,7 +5,10 @@ from os import O_WRONLY, O_RDONLY
 from threading import Thread, Event
 from ctypes import Structure, c_uint32, c_uint64
 
-from posix_ipc import MessageQueue, ExistentialError
+try:
+    from posix_ipc import MessageQueue, ExistentialError
+except ImportError:
+    from avatar2.sockqueue import SockMessageQueue as MessageQueue, ExistentialError
 
 from avatar2.message import RemoteMemoryReadMessage, RemoteMemoryWriteMessage
 

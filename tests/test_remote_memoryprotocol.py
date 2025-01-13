@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import sys
@@ -9,7 +10,10 @@ else:
 import avatar2.protocols.remote_memory
 
 from os import O_CREAT, O_RDONLY, O_WRONLY, O_RDWR
-from posix_ipc import MessageQueue
+try:
+    from posix_ipc import MessageQueue
+except ImportError:
+    from avatar2.sockqueue import SockMessageQueue as MessageQueue
 
 
 
@@ -30,8 +34,9 @@ class RemoteMemoryTestCase(unittest.TestCase):
         magic5 = 4
 
         q = queue.Queue()
-        a = MessageQueue('/a', flags=O_CREAT|O_RDWR)
-        b = MessageQueue('/b', flags=O_CREAT|O_RDWR)
+        a = MessageQueue('/a', flags=O_CREAT|O_RDWR, read=False, write=True)
+        b = MessageQueue('/b', flags=O_CREAT|O_RDWR, read=True, write=False)
+
         mprot1 = avatar2.protocols.remote_memory.RemoteMemoryProtocol('/a','/b', q)
 
         ret = mprot1.connect()
@@ -46,11 +51,17 @@ class RemoteMemoryTestCase(unittest.TestCase):
         a.send(request)
         msg = q.get()
 
+        # mprot1.shutdown()
+        # a.close()
+        # b.close()
+
         self.assertEqual(msg.id, magic1)
         self.assertEqual(msg.pc, magic2)
         self.assertEqual(msg.address, magic3)
         self.assertEqual(msg.value, magic4)
         self.assertEqual(msg.size, magic5)
+
+        time.sleep(10)
 
 
 

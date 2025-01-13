@@ -4,7 +4,10 @@ from os import O_WRONLY, O_RDONLY
 from threading import Thread, Event, Condition
 from ctypes import Structure, c_uint32, c_uint64
 from enum import Enum
-from posix_ipc import MessageQueue, ExistentialError
+try:
+    from posix_ipc import MessageQueue, ExistentialError
+except ImportError:
+    from avatar2.sockqueue import SockMessageQueue as MessageQueue, ExistentialError
 
 from avatar2.message import RemoteInterruptEnterMessage
 from avatar2.message import RemoteInterruptExitMessage
