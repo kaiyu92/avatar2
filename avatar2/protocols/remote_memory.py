@@ -132,22 +132,26 @@ class RemoteMemoryProtocol(object):
 
         :return True on success, else False
         """
-        try:
-            self._rx_queue = MessageQueue(self.rx_queue_name, flags=O_RDONLY,
-                                          read=True, write=False)
-            self._rx_queue.unlink()
-        except Exception as e:
-            self.log.exception("Unable to create rx_queue:")
-            return False
 
+        # QEMU side expects expects to get hit with this first.
         try:
             self._tx_queue = MessageQueue(self.tx_queue_name, flags=O_WRONLY,
                                           read=False, write=True)
             self._tx_queue.unlink()
         except Exception as e:
             self.log.exception("Unable to create tx_queue:")
-            self._rx_queue.close()
             return False
+
+        # and then this. so we keep the order right.
+        try:
+            self._rx_queue = MessageQueue(self.rx_queue_name, flags=O_RDONLY,
+                                          read=True, write=False)
+            self._rx_queue.unlink()
+        except Exception as e:
+            self.log.exception("Unable to create rx_queue:")
+            self._tx_queue.close()
+            return False
+
         self._rx_listener = RemoteMemoryRequestListener(self._rx_queue,
                                                         self._avatar_queue,
                                                         self._origin)

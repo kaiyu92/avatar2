@@ -278,17 +278,6 @@ class QemuTarget(Target):
         """
         Internal routine to connect the various protocols to a running qemu
         """
-
-        gdb = GDBProtocol(
-            gdb_executable=self.gdb_executable,
-            arch=self.avatar.arch,
-            verbose=self.gdb_verbose,
-            additional_args=self.gdb_additional_args,
-            avatar=self.avatar,
-            origin=self,
-        )
-        qmp = QMPProtocol(self.qmp_port, origin=self)
-
         if "avatar-rmemory" in [
             i[2].qemu_name
             for i in self._memory_mapping.iter()
@@ -302,6 +291,21 @@ class QemuTarget(Target):
             )
         else:
             rmp = None
+        
+        # print("ASDASDASDDAS")
+        if rmp:
+            rmp.connect()
+
+        gdb = GDBProtocol(
+            gdb_executable=self.gdb_executable,
+            arch=self.avatar.arch,
+            verbose=self.gdb_verbose,
+            additional_args=self.gdb_additional_args,
+            avatar=self.avatar,
+            origin=self,
+        )
+        qmp = QMPProtocol(self.qmp_port, origin=self)
+
 
         self.protocols.set_all(gdb)
         self.protocols.monitor = qmp
@@ -321,6 +325,4 @@ class QemuTarget(Target):
         else:
             self.log.warning("Connection to remote target failed")
 
-        if rmp:
-            rmp.connect()
         self.wait()

@@ -51,13 +51,20 @@ class SockMessageQueue:
             #     #     pass
             #     s.bind(self.filename)
             #     # s.close()
-            try:
-                self.sock.connect(self.filename)
-                self.unlink()
-                self.preemptve_unlink = True
-                self.connected = True
-            except FileNotFoundError:
-                self.connected = False
+            tries = 0
+            while True:
+                try:
+                    self.sock.connect(self.filename)
+                    break
+                except FileNotFoundError:
+                    time.sleep(0.2)
+                    if tries >=50:
+                        self.connected = False
+                        raise ExistentialError()
+                tries+=1
+            self.unlink()
+            self.preemptve_unlink = True
+            self.connected = True
 
     def unlink(self):
         # We only allow the client to unlink
@@ -79,14 +86,6 @@ class SockMessageQueue:
 
     def send(self, buf: Union[bytes, Structure]):
         assert self.write
-        if not self.connected:
-            # assume that by now the server is up.
-            # print(self.filename)
-            # time.sleep(10)
-            self.sock.connect(self.filename)
-            self.connected = True
-            self.unlink()
-            self.preemptve_unlink = True
         slen = self.sock.send(buf)
 
         if isinstance(buf, bytes):

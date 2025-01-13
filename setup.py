@@ -12,6 +12,7 @@ setup(
               'avatar2/peripherals',
               'avatar2/plugins',
               'avatar2/plugins/arm',
+              'avatar2/sockqueue',
               'avatar2/installer'
               ],
     install_requires=[
