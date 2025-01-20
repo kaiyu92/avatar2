@@ -21,7 +21,7 @@ setup(
         'pygdbmi>=0.10.0.0;python_version>"3.5"',
         'cached_property;python_version<="3.8"',
         'intervaltree',
-        'posix_ipc>=1.0.0',
+        # 'posix_ipc>=1.0.0',
         'capstone>=3.0.4',
         'keystone-engine',
         'parse',

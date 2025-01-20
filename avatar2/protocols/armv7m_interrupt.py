@@ -5,7 +5,8 @@ from threading import Thread, Event, Condition
 from ctypes import Structure, c_uint32, c_uint64
 from enum import Enum
 try:
-    from posix_ipc import MessageQueue, ExistentialError
+    # from posix_ipc import MessageQueue, ExistentialError
+    raise ImportError()
 except ImportError:
     from avatar2.sockqueue import SockMessageQueue as MessageQueue, ExistentialError
 

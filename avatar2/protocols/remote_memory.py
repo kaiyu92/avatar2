@@ -7,6 +7,7 @@ from ctypes import Structure, c_uint32, c_uint64
 
 try:
     from posix_ipc import MessageQueue, ExistentialError
+    raise ImportError()
 except ImportError:
     from avatar2.sockqueue import SockMessageQueue as MessageQueue, ExistentialError
 
