@@ -211,7 +211,6 @@ class GDBRSPServer(Thread):
             addr, n = match_hex('m(.*),(.*)', pkt.decode())
 
             if self.do_forwarding is True:
-                # self.avatar.
                 mr = self.avatar.get_memory_range(addr)
                 if mr is not None and mr.forwarded is True:
                     val = mr.forwarded_to.read_memory(addr, n)
@@ -279,7 +278,12 @@ class GDBRSPServer(Thread):
             # is cumbersome, so just lie to gdb that we removed the breakpoint.
             # if we error, it'll try sending the packet again and again and
             # again.
+
+            # except, GDB seems to do this regardless, so this fix was moot.
+            # TODO: actually fix it later.
+
             # return b'E00'
+
             return b'OK'
         
         self.target.remove_breakpoint(n)
