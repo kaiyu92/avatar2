@@ -211,13 +211,14 @@ class GDBRSPServer(Thread):
             addr, n = match_hex('m(.*),(.*)', pkt.decode())
 
             if self.do_forwarding is True:
+                # self.avatar.
                 mr = self.avatar.get_memory_range(addr)
                 if mr is not None and mr.forwarded is True:
                     val = mr.forwarded_to.read_memory(addr, n)
                     val = val.to_bytes(n, byteorder='little')
                     return binascii.b2a_hex(val)
 
-            val = self.target.read_memory(addr, n, raw=True).hex()
+            val = self.target.read_memory(addr, n, raw=True, phys=False).hex()
             return val.encode()
             
         except Exception as e:
@@ -237,7 +238,7 @@ class GDBRSPServer(Thread):
                     mr.forwarded_to.write_memory(addr, n, int_val)
                     return b'OK'
 
-            self.target.write_memory(addr, n, raw_val, raw=True)
+            self.target.write_memory(addr, n, raw_val, raw=True, phys=False)
             return b'OK'
             
         except Exception as e:
@@ -273,7 +274,13 @@ class GDBRSPServer(Thread):
         if len(matches) == 0:
             l.warn(f'GDB tried to remove non existing bp for {addr}')
             l.info(self.bps)
-            return b'E00'
+            # This happens very often in practice. Either due to pwndbg or
+            # breakpoints remaining from an old session. Either way, this
+            # is cumbersome, so just lie to gdb that we removed the breakpoint.
+            # if we error, it'll try sending the packet again and again and
+            # again.
+            # return b'E00'
+            return b'OK'
         
         self.target.remove_breakpoint(n)
         self.bps.pop(n)
@@ -349,7 +356,7 @@ class GDBRSPServer(Thread):
                 pkt += c
 
 
-def spawn_gdb_server(self, target, port, do_forwarding=True, xml_file=None):
+def spawn_gdb_server(self, target, port, do_forwarding=False, xml_file=None):
     if xml_file is None:
         # default for now: use ARM
         xml_file = f'{dirname(__file__)}/gdb/arm-target.xml'

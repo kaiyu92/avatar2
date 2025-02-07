@@ -115,20 +115,29 @@ class PyPandaTarget(PandaTarget):
 
     @watch('TargetReadMemory')
     @action_valid_decorator_factory(TargetStates.STOPPED, 'memory')
-    def read_memory(self, address, size, num_words=1, raw=False):
+    def read_memory(self, address, size, num_words=1, raw=False, phys=True):
         if raw == False:
             return self.protocols.memory.read_memory(address, size, num_words)
         else:
-            return self.pypanda.physical_memory_read(address,size*num_words)
-
+            if phys:
+                return self.pypanda.physical_memory_read(address,size*num_words)
+            else:
+                # XXX: for now we only use the first cpu. when we have more cpus
+                # we need to extend this
+                return self.pypanda.virtual_memory_read(self.pypanda.get_cpu(), address,size*num_words)
 
     @watch('TargetWriteMemory')
     @action_valid_decorator_factory(TargetStates.STOPPED, 'memory')
-    def write_memory(self, address, size, value, num_words=1, raw=False):
+    def write_memory(self, address, size, value, num_words=1, raw=False, phys=True):
         if raw == False:
             return self.protocols.memory.write_memory(address, size, value, num_words=num_words)
         else:
-            return self.pypanda.physical_memory_write(address, value)
+            if phys:
+                return self.pypanda.physical_memory_write(address, value)
+            else:
+                # XXX: for now we only use the first cpu. when we have more cpus
+                # we need to extend this
+                return self.pypanda.virtual_memory_write(self.pypanda.get_cpu(), address, value)
 
 
 
