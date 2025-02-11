@@ -303,7 +303,7 @@ class GDBProtocol(object):
             self._gdbmi.exit()
             self._gdbmi = None
 
-    def _sync_request(self, request, rexpect, timeout=5):
+    def _sync_request(self, request, rexpect, timeout=5, core=None):
         """ Generic method to send a syncronized request
 
         :param request: the request as list
@@ -315,17 +315,26 @@ class GDBProtocol(object):
         token = self._communicator.get_token()
         request = [request] if isinstance(request, str) else request
 
+        if core is not None:
+            request = request[0:1] + ["--thread", str(core)] + request[1:]
+
         req = str(token) + ' '.join(request)
         self.log.debug("Sending request: %s" % req)
 
         self._gdbmi.write(req, read_response=False, timeout_sec=0)
         try:
             response = self._communicator.get_sync_response(token, timeout=timeout)
+            print("BOK %s %s" % (req, str(response)))
             ret = True if response['message'] == rexpect else False
         except:
             response = None
             ret = None
         return ret, response
+
+    # def switch_cpu(self, new_cpuid):
+    #     # we use one thread per cpu
+    #     req = ['-thread-select', str()
+
 
     def set_abi(self, abi):
         req = ['-gdb-set', self._arch.gdb_name, 'abi', abi]
@@ -451,13 +460,13 @@ class GDBProtocol(object):
             resp)
         return ret
 
-    def get_register_names(self):
+    def get_register_names(self, core=None):
         """fetch all register names
         :returns:  a list with all registers names, in order as known to gdb
         """
 
         ret, resp = self._sync_request(
-            '-data-list-register-names', GDB_PROT_DONE)
+            '-data-list-register-names', GDB_PROT_DONE, core=core)
 
         self.log.debug(
             "Attempted to obtain register names. Received response: %s" % resp)
@@ -727,7 +736,7 @@ class GDBProtocol(object):
         return int(resp['payload']['register-values']
                    [0]['value'], 16) if ret else None
 
-    def write_register(self, reg, value):
+    def write_register(self, reg, value, core=None):
         """Set one register on the target
         :returns: True on success"""
 
@@ -739,11 +748,11 @@ class GDBProtocol(object):
             ret, resp = self._sync_request(
                 ["-data-evaluate-expression", fmt.format(
                     self._arch.special_registers[reg]['gdb_expression'], *value)
-                 ], GDB_PROT_DONE
+                 ], GDB_PROT_DONE, core=core
             )
         else:
             ret, resp = self._sync_request(
-                ["-gdb-set", "$%s=0x%x" % (reg, value)], GDB_PROT_DONE)
+                ["-gdb-set", "$%s=0x%x" % (reg, value)], GDB_PROT_DONE,core=core)
 
         self.log.debug("Attempted to set register. Received response: %s" % resp)
         return ret

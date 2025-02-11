@@ -387,14 +387,14 @@ class Target(object):
 
     @watch('TargetRegisterWrite')
     @action_valid_decorator_factory(TargetStates.STOPPED, 'registers')
-    def write_register(self, register, value):
+    def write_register(self, register, value, *args, **kwargs):
         """
         Writing a register to the target
 
         :param register:     The name of the register
         :param value:        The actual value written to the register
         """
-        return self.protocols.registers.write_register(register, value)
+        return self.protocols.registers.write_register(register, value, *args, **kwargs)
 
     @watch('TargetRegisterRead')
     @action_valid_decorator_factory(TargetStates.STOPPED, 'registers')

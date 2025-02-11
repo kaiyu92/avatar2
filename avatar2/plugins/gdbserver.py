@@ -6,6 +6,8 @@ import socket
 import binascii
 import struct
 
+import threading
+import traceback
 import xml.etree.ElementTree as ET
 
 from time import sleep
@@ -52,8 +54,10 @@ class GDBRSPServer(Thread):
 
         self.handlers = {
             'q' : self.query,
+            'Q' : self.set_config,
             'v' : self.multi_letter_cmd,
             'H' : self.set_thread_op,
+            # 'k' : self.kill,
             '?' : self.halt_reason,
             'g' : self.read_registers,
             'G' : self.reg_write,
@@ -69,6 +73,17 @@ class GDBRSPServer(Thread):
             'D' : self.detach,
         }
 
+    def set_config(self, pkt):
+
+        if pkt[1:] == b"StartNoAckMode":
+            # TODO: implement
+            self.no_ack_mode = True
+
+            return b'OK'
+        
+        l.error("Error in set_config %s" % str(pkt))
+        return b'E00'
+
     def shutdown(self):
         self._do_shutdown.set()
         sleep(TIMEOUT_TIME*2)
@@ -80,7 +95,8 @@ class GDBRSPServer(Thread):
         self.sock.settimeout(TIMEOUT_TIME)
         self.sock.listen(1)
         
-        while not self._do_shutdown.isSet():
+        killed = False
+        while not self._do_shutdown.isSet() and not killed:
             try:
                 self.conn, addr = self.sock.accept()
             except socket.timeout:
@@ -98,12 +114,32 @@ class GDBRSPServer(Thread):
                 l.debug(f'Received: {packet}')
                 self.send_raw(b'+') # send ACK
 
+                if packet[0:1] == b'k':
+                    l.info("shutting down...")
+                    self.send_packet(b"OK")
+                    killed = True
+                    break
+
                 handler = self.handlers.get(chr(packet[0]),
                                                 self.not_implemented)
                 resp = handler(packet)
                 if resp is not None:
                     self.send_packet(resp)
+        # print("shutting down...", flush=True)
+        # if killed:
+        #     self.target.shutdown()
+        #     self.avatar.shutdown()
+        
+        # if killed:
+        #     raise KeyboardInterrupt()
         self.sock.close()
+        # print("sock closed...", flush=True)
+        
+        # remove ourselves before we shutdown the target.
+        # if we don't do this, it's possible to get shutdown twice and faill ms
+        if killed:
+            self.avatar._gdb_servers.remove(self)
+            self.target.shutdown()
 
 
     ### Handlers
@@ -117,6 +153,15 @@ class GDBRSPServer(Thread):
                     b'qXfer:features:read+'
                    ]
             return b';'.join(feat)
+
+        if pkt[1:].startswith(b'ProcessInfo') is True:
+            pid = 1
+
+            # ARM_64_32
+            cputype = 0x200000c
+
+            pi = f"main-binary-address:0;pid:{pid:x};cputype:{cputype:x};ostype:littlekernel;endian:little;ptrsize:4".encode()
+            return pi
 
         if pkt[1:].startswith(b'Attached') is True:
             return b'1'
@@ -168,7 +213,9 @@ class GDBRSPServer(Thread):
         return b''
 
     def multi_letter_cmd(self, pkt):
-        if pkt[1:].startswith(b'vMustReplyEmpty') is True:
+        if pkt[1:].startswith(b'MustReplyEmpty'):
+            return b''
+        if pkt[1:].startswith(b'Cont?'):
             return b''
         return b''
 
@@ -224,6 +271,11 @@ class GDBRSPServer(Thread):
             l.warn(f'Error in mem_read: {e}')
             return b'E00'
 
+    # def kill(self, pkt):
+    #     # self.shutdown()
+    #     self.avatar.shutdown()
+    #     return
+
 
     def mem_write(self, pkt):
         try:
@@ -252,7 +304,8 @@ class GDBRSPServer(Thread):
 
     def step(self, pkt):
         self.target.step()
-        return b'S00'
+        # lie and say SIGTRAP. If we reply with S00 lldb goes sicko mode.
+        return b'S05'
 
     def step_signal(self, pkt):
         self.target.step()
@@ -308,6 +361,7 @@ class GDBRSPServer(Thread):
         if type(pkt) == str:
             raise Exception("Packet require bytes, not strings")
         
+        # l.warn("send pkt: %s", pkt.decode())
         self.send_raw(b'$%b#%02x' % (pkt, chksum(pkt)))
 
 
@@ -352,6 +406,7 @@ class GDBRSPServer(Thread):
             elif c == b'#': # end of package
                 checksum = self.conn.recv(2)
                 if int(checksum, 16) == chksum(pkt):
+                    # l.warn("avatar recv: %s", pkt.decode())
                     return pkt
                 else:
                     raise Exception('Checksum Error')
@@ -370,14 +425,24 @@ def spawn_gdb_server(self, target, port, do_forwarding=False, xml_file=None):
     self._gdb_servers.append(server)
     return server
 
-def exit_server(avatar, watched_target):
+_exitLock = threading.Lock()
 
+def exit_server(avatar, watched_target):
+    # this function can be entered twice:
+    # kill packet -> self.target.shutdown() -> TargetShutdown -> calls this func
+    # but also                              \-> user script sees this and calls
+    # avatar.shutdown() which calls target.shutdown(), ultimately calling this
+    # func again. We either need to change the logic or use some locks somewhere.
+    # this is probably not the best place to put the locks either, but meh.
+
+    _exitLock.acquire_lock()
     for s in avatar._gdb_servers:
         if s.target == watched_target:
             s.shutdown()
             avatar._gdb_servers.remove(s)
-
+    _exitLock.release_lock()
 def load_plugin(avatar):
+    l.warn("gdb initing")
     avatar.spawn_gdb_server = MethodType(spawn_gdb_server, avatar)
     avatar.watchmen.add_watchman('TargetShutdown', when='before',
                                  callback=exit_server)
