@@ -181,6 +181,7 @@ class GDBRSPServer(Thread):
 
         if pkt[1:].startswith(b'fThreadInfo') is True:
             return b'm1'
+
         if pkt[1:].startswith(b'sThreadInfo') is True:
             return b'l'
 
@@ -188,8 +189,19 @@ class GDBRSPServer(Thread):
             try:
                 cmd = re.match('qRcmd,(.*)',pkt.decode())[1]
                 cmd = binascii.a2b_hex(cmd) 
-                l.debug(f'Receiced cmd: {cmd}')
-                res = eval(cmd)
+                l.debug(f'Received cmd: {cmd}')
+                # res = eval(cmd)
+
+                # XXX: first cpu only (get_cpu) also pypanda specific.
+                if cmd.startswith(b"v2p "):
+                    # print(int(cmd[4:].decode(),16))
+                    res = self.target.virt_to_phys(self.target.pypanda.get_cpu(),int(cmd[4:].decode(),16))
+                    res = hex(res)
+                    # resa = self.target.virtual_memory_read(self.target.pypanda.get_cpu(),int(cmd[4:].decode(),16), 4)
+                    # l.
+                else:
+                    res = "ERROR"
+
                 
                 self.send_packet(b'O' \
                             + binascii.b2a_hex(repr(res).encode()) \

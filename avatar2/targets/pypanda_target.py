@@ -27,6 +27,8 @@ class PyPandaTarget(PandaTarget):
         self.pypanda = None
         self._thread = None
 
+    def virt_to_phys(self, cpustate, addr):
+        return self.pypanda.virt_to_phys(cpustate, addr)
     def shutdown(self):
         if self._thread is not None and self._thread.is_alive():
             self.protocols.execution.remote_disconnect()
