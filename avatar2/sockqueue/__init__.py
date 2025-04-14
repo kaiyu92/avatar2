@@ -15,7 +15,7 @@ class SockMessageQueue:
         write: bool,
     ):  
         # mqueue address names start with a "/", but we don't want that here.
-        self.filename = f"/tmp/avatar2.sockmq.{name.removeprefix("/")}.sock"
+        self.filename = f"/tmp/avatar2.sockmq.{name.removeprefix('/')}.sock"
         print(self.filename, name, read, write)
         self.flags = flags
         self.read = read
